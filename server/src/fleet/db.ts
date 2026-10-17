@@ -211,9 +211,23 @@ CREATE INDEX IF NOT EXISTS sessions_cleared_from ON sessions(cleared_from);`,
     // SHA-256 of a token is kept now. The column is not indexed, so it can be dropped in place.
     sql: 'ALTER TABLE people DROP COLUMN token_last4;',
   },
+  {
+    version: 18,
+    sql: `ALTER TABLE sessions ADD COLUMN integration_json TEXT;
+CREATE TABLE native_state (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  state_json TEXT NOT NULL
+);
+CREATE TABLE native_usage (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  usage_id TEXT NOT NULL, model TEXT, agent_id TEXT, tokens_json TEXT NOT NULL,
+  cost_usd REAL, at INTEGER NOT NULL, PRIMARY KEY (session_id, usage_id)
+);`,
+  },
 ];
 
 export interface SessionRow {
+  integration_json?: string | null;
   id: string;
   name: string;
   status: 'running' | 'waiting' | 'done';
@@ -379,6 +393,7 @@ type Params = Record<string, string | number | null>;
 /** Typed, prepared queries over one database. */
 export class FleetDb {
   private readonly stmts = new Map<string, StatementSync>();
+  private transactionDepth = 0;
 
   constructor(readonly db: DatabaseSync) {}
 
@@ -393,14 +408,17 @@ export class FleetDb {
 
   /** Runs `fn` in one transaction; rolls back if it throws. */
   tx<T>(fn: () => T): T {
-    this.db.exec('BEGIN');
+    const savepoint = `fleet_${this.transactionDepth++}`;
+    this.db.exec(`SAVEPOINT ${savepoint}`);
     try {
       const out = fn();
-      this.db.exec('COMMIT');
+      this.db.exec(`RELEASE ${savepoint}`);
       return out;
     } catch (err) {
-      this.db.exec('ROLLBACK');
+      this.db.exec(`ROLLBACK TO ${savepoint}; RELEASE ${savepoint}`);
       throw err;
+    } finally {
+      this.transactionDepth--;
     }
   }
 

@@ -29,7 +29,8 @@ export const ADMIN_SECRET = 'admin secret';
 
 /** What one accepted report says about its sender. Never a token: `credential` is a key id or the words "admin secret". */
 export interface ReporterSeen {
-  kind: 'mod' | 'hooks';
+  kind: 'mod' | 'hooks' | 'native';
+  engine?: string;
   machineId: string | null;
   machineName: string | null;
   source: string | null;
@@ -67,7 +68,7 @@ export interface ReporterList extends Paged<ReporterRow> {
 }
 export interface ReporterDetail extends ReporterRow {
   serverStartedAt: number;
-  kind: 'mod' | 'hooks';
+  kind: 'mod' | 'hooks' | 'native';
   machineId: string | null;
   source: string | null;
   engineVersion: string | null;
@@ -102,7 +103,7 @@ export interface ForgetSetting {
 
 interface DbReporter {
   key: string;
-  kind: 'mod' | 'hooks';
+  kind: 'mod' | 'hooks' | 'native';
   machine_id: string | null;
   machine_name: string | null;
   source_address: string | null;
@@ -159,7 +160,8 @@ export class ReporterStore {
   }
 
   /** The key a reporter is known by. */
-  static keyOf(s: Pick<ReporterSeen, 'kind' | 'machineId' | 'source'>): string {
+  static keyOf(s: Pick<ReporterSeen, 'kind' | 'machineId' | 'source' | 'engine'>): string {
+    if (s.engine) return `native:${s.engine}:${s.source ?? 'unknown'}#${'owner' in s ? s.owner ?? '' : ''}`;
     if (s.machineId) return s.machineId;
     return `${s.kind === 'hooks' ? 'hooks' : 'addr'}:${s.source ?? 'unknown'}`;
   }
@@ -169,7 +171,7 @@ export class ReporterStore {
    * the first one keeps the machine id as its key (rows and ignore rules made before this stay valid) and each
    * other account gets `<machine id>#<owner>`. A reporter with no machine id is keyed by `keyOf` alone.
    */
-  private accountKey(s: Pick<ReporterSeen, 'kind' | 'machineId' | 'source' | 'owner'>): string {
+  private accountKey(s: Pick<ReporterSeen, 'kind' | 'machineId' | 'source' | 'owner' | 'engine'>): string {
     const own = ReporterStore.keyOf(s);
     if (!s.machineId) return own;
     const apart = `${s.machineId}#${s.owner ?? ''}`;
@@ -186,7 +188,7 @@ export class ReporterStore {
    */
   private knownKey(s: ReporterSeen): string | undefined {
     if (s.machineId) return undefined;
-    const prefix = s.kind === 'hooks' ? 'hooks:' : 'addr:';
+    const prefix = s.engine ? `native:${s.engine}:` : s.kind === 'hooks' ? 'hooks:' : 'addr:';
     const hit = this.stmt(
       `SELECT r.key FROM reporter_sessions x JOIN reporters r ON r.key = x.reporter_key
        WHERE x.session_id = ? AND r.machine_id IS NULL AND r.kind = ? AND r.key LIKE ? ORDER BY r.first_seen_at, r.key LIMIT 1`,
@@ -195,7 +197,7 @@ export class ReporterStore {
   }
 
   /** Every key a report from this sender can be known by: its own, and the row that already holds its session (#166). */
-  keysFor(s: Pick<ReporterSeen, 'kind' | 'machineId' | 'source' | 'sessionId'> & { owner?: string | null }): string[] {
+  keysFor(s: Pick<ReporterSeen, 'kind' | 'machineId' | 'source' | 'sessionId' | 'engine'> & { owner?: string | null }): string[] {
     const own = ReporterStore.keyOf(s);
     const known = this.knownKey(s as ReporterSeen);
     const account = this.accountKey({ ...s, owner: s.owner ?? null });

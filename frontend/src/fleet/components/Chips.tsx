@@ -18,7 +18,7 @@ export function cssVar(c: string): CSSProperties {
   return { ["--c" as string]: c } as CSSProperties;
 }
 
-export const NO_PRICE_TITLE = "Not a Claude model, so Podium has no price for it and shows no cost estimate";
+export const NO_PRICE_TITLE = "No USD usage or configured price is available; subscription credits are not dollars";
 
 /** A cost figure. A non-Claude model has no price: it reads "n/a" with the reason, not a made-up dollar amount. */
 export function Cost({ usd, family }: { usd: number | null; family: ModelFamily }) {

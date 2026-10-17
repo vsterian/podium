@@ -14,6 +14,17 @@ the changes merged after the reporter's 0.14.3 bump, because it is the first rel
 
 ## [Unreleased]
 
+### Added
+
+- Native Codex hooks with opt-in current-session metadata enrichment.
+- Copilot CLI extension with live telemetry and stable hooks fallback.
+- OpenCode plugin for lifecycle, tools, plans, child sessions and usage.
+- Backward-compatible integration metadata, durable native state and authenticated event ingestion.
+- CLI filtering, engine badges, native resume commands and explicit unavailable telemetry.
+- Reporter install/uninstall commands preserving unrelated configuration.
+- Native regression tests and real-CLI E2E probes with optional deterministic model fixtures.
+
+
 ## [1.1.0] - 2026-10-16
 
 ### Added

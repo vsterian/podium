@@ -52,14 +52,15 @@ export function sortSessions(list: readonly SessionView[], key: SortKey): Sessio
   return list.slice().sort((a, b) => c(a, b) || byName(a, b));
 }
 
-export function filterSessions(list: readonly SessionView[], filter: { status: StatusFilter; q: string }): SessionView[] {
+export function filterSessions(list: readonly SessionView[], filter: { status: StatusFilter; q: string; engine?: string }): SessionView[] {
   const q = filter.q.trim().toLowerCase();
   return list.filter((s) => {
+    if (filter.engine && filter.engine !== "all" && (s.integration?.engine ?? "claude-code") !== filter.engine) return false;
     if (filter.status === "blow") {
       if (!s.blowouts.total) return false;
     } else if (filter.status !== "all" && s.status !== filter.status) return false;
     if (q) {
-      const hay = `${s.name}\n${s.project}\n${s.git?.branch ?? ""}`.toLowerCase();
+      const hay = `${s.name}\n${s.project}\n${s.git?.branch ?? ""}\n${s.integration?.engine ?? "claude-code"}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -279,8 +280,11 @@ export function agentTokens(a: AgentView): number {
 
 /** The orchestrator's context plus each agent's, so the rows of one session add up. */
 export function sessionTokens(s: SessionView): number {
+  if (s.integration) return s.tokensTotal;
   return (s.context.tokens ?? 0) + s.agents.reduce((n, a) => n + agentTokens(a), 0);
 }
+
+export const NATIVE_TOKENS_HINT = "Cumulative usage reported by this CLI, including observed agent usage.";
 
 export const TOKENS_HINT = "Tokens in the context window now: input, cache read and cache write of the latest request. The same figure Claude Code shows. A running total is in the side panel.";
 

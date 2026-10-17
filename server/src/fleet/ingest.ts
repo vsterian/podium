@@ -52,6 +52,7 @@ function sessionRow(r: Report, prev: SessionRow | undefined, serverTime: number,
   const done = s.status === 'done';
   return {
     id: s.id,
+    integration_json: json(s.integration ?? null),
     name: s.name,
     status: s.status,
     wait_reason: s.waitReason,
@@ -71,7 +72,7 @@ function sessionRow(r: Report, prev: SessionRow | undefined, serverTime: number,
     context_tokens: s.context.tokens,
     context_window: s.context.window,
     context_percent: s.context.percent,
-    cost_usd: priced(s.model, s.costUsd),
+    cost_usd: s.integration ? s.costUsd : priced(s.model, s.costUsd),
     tok_in: s.tokens.input,
     tok_out: s.tokens.output,
     tok_cr: s.tokens.cacheRead,
@@ -96,7 +97,7 @@ function sessionRow(r: Report, prev: SessionRow | undefined, serverTime: number,
   };
 }
 
-function agentRow(sessionId: string, a: AgentReport): AgentRow {
+function agentRow(sessionId: string, a: AgentReport, native = false): AgentRow {
   return {
     session_id: sessionId,
     id: a.id,
@@ -118,7 +119,7 @@ function agentRow(sessionId: string, a: AgentReport): AgentRow {
     tok_out: a.tokens.output,
     tok_cr: a.tokens.cacheRead,
     tok_cw: a.tokens.cacheWrite,
-    cost_usd_est: priced(a.model, a.costUsdEst),
+    cost_usd_est: native ? a.costUsdEst : priced(a.model, a.costUsdEst),
     skills_json: JSON.stringify(a.skills),
     last_tool: a.lastTool,
     tool_calls: a.toolCalls,
@@ -149,6 +150,7 @@ export function ingestReport(f: FleetDb, report: Report, serverTime: number, own
     const sid = report.session.id;
     const prev = f.getSession(sid);
     if (owner !== null && prev?.owner && prev.owner !== owner) throw new OwnerConflict('session belongs to another owner');
+    if (prev?.integration_json && JSON.parse(prev.integration_json).engine !== report.session.integration?.engine) throw new OwnerConflict('session engine cannot change');
     const row = sessionRow(report, prev, serverTime, owner);
     f.upsertSession(row);
     const ended = report.session.status === 'done';
@@ -156,7 +158,7 @@ export function ingestReport(f: FleetDb, report: Report, serverTime: number, own
 
     // 2. Agents: upsert what was reported; never delete one that is missing (a reload may lose it).
     for (const a of report.agents) {
-      f.upsertAgent(agentRow(sid, a));
+      f.upsertAgent(agentRow(sid, a, !!report.session.integration));
       if (a.promptText || a.answerText) {
         f.upsertAgentTexts(sid, a.id, {
           ...(a.promptText ? { prompt: a.promptText } : {}),

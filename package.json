@@ -1,16 +1,16 @@
 {
   "name": "podium",
   "version": "1.1.0",
-  "description": "A live fleet console for Claude Code: every session, agent, plan, cost and context window in one browser tab.",
+  "description": "A live fleet console for Claude Code, Codex, Copilot CLI and OpenCode: every session, agent, plan, cost and context window in one browser tab.",
   "license": "MIT",
   "author": "Ed Engelking",
-  "homepage": "https://github.com/eengelking/podium#readme",
+  "homepage": "https://github.com/vsterian/podium#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eengelking/podium.git"
+    "url": "git+https://github.com/vsterian/podium.git"
   },
   "bugs": {
-    "url": "https://github.com/eengelking/podium/issues"
+    "url": "https://github.com/vsterian/podium/issues"
   },
   "private": true,
   "type": "module",
@@ -23,6 +23,7 @@
     "build": "npm run build -w frontend && npm run build -w server && tsc -p scripts/tsconfig.json",
     "test": "npm run test -w server && npm run test -w frontend",
     "podium:sim": "tsx scripts/podium-sim.ts",
+    "podium:native-e2e": "node scripts/podium-native-e2e.mjs",
     "podium:smoke": "bash scripts/podium-smoke.sh",
     "test:mod": "claude plugin test mod/podium-reporter",
     "typecheck:mod": "bash scripts/podium-mod-typecheck.sh",

@@ -64,8 +64,11 @@ export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
-export function resumeCommand(cwd: string, resumeId: string | null, id: string): string {
-  return `cd ${shellQuote(cwd)} && claude --resume ${shellQuote(resumeId ?? id)}`;
+export function resumeCommand(cwd: string, resumeId: string | null, id: string, integration?: SessionView['integration']): string {
+  const native = shellQuote(integration?.nativeId ?? resumeId ?? id);
+  const engine = integration?.engine;
+  const command = engine === 'codex' ? `codex resume ${native}` : engine === 'copilot' ? `copilot --resume ${native}` : engine === 'opencode' ? `opencode --session ${native}` : `claude --resume ${native}`;
+  return `cd ${shellQuote(cwd)} && ${command}`;
 }
 
 function parse<T>(text: string | null, fallback: T): T {
@@ -167,6 +170,7 @@ export interface DeriveConfig {
  */
 export function isUnused(row: SessionRow, agentCount: number | (() => number)): boolean {
   return (
+    !row.integration_json &&
     row.reporter_version !== 'hooks' &&
     row.status !== 'running' &&
     !row.cost_usd &&
@@ -180,7 +184,7 @@ export function isUnused(row: SessionRow, agentCount: number | (() => number)): 
 
 /** How long a session may stay silent before it shows as stale: hook-only sessions have no heartbeat. */
 export function staleAfterFor(row: SessionRow, cfg: DeriveConfig): number {
-  return row.reporter_version === 'hooks' ? (cfg.hookStaleAfterMs ?? cfg.staleAfterMs) : cfg.staleAfterMs;
+  return row.reporter_version === 'hooks' || parse<SessionView['integration']>(row.integration_json ?? null, undefined)?.mode === 'hooks' ? (cfg.hookStaleAfterMs ?? cfg.staleAfterMs) : cfg.staleAfterMs;
 }
 
 export interface SessionInput {
@@ -220,13 +224,14 @@ export function sessionView(input: SessionInput, now: number, cfg: DeriveConfig)
   return {
     id: row.id,
     name: row.name,
+    ...(row.integration_json ? { integration: JSON.parse(row.integration_json) } : {}),
     reporter: row.reporter_version === 'hooks' ? 'hooks' : 'mod',
     reporterVersion: row.reporter_version === 'hooks' ? null : row.reporter_version,
-    compat: row.reporter_version === 'hooks' ? 'unknown' : checkReporter(row.reporter_version),
+    compat: row.integration_json || row.reporter_version === 'hooks' ? 'unknown' : checkReporter(row.reporter_version),
     project: shortenHome(row.project_root ?? row.cwd, cfg.home),
     cwd: shortenHome(row.cwd, cfg.home),
     repoName: row.repo_name,
-    resumeCommand: resumeCommand(row.cwd, row.resume_id, row.id),
+    resumeCommand: resumeCommand(row.cwd, row.resume_id, row.id, parse(row.integration_json ?? null, undefined)),
     git: parse<GitInfo | null>(row.git_json, null),
     model: row.model,
     modelFamily: family(row.model),
@@ -339,7 +344,8 @@ export function computeKpis(input: KpiInput, now: number): Kpis {
       k.planDone += v.plan.steps.filter((s) => s.state === 'done').length;
     }
     // Unpriced means a non-Claude model nobody has priced: once the Admin does, the session has a cost and drops out.
-    if (v.modelFamily === 'other' && v.model && v.costUsd === null) k.unpricedSessions++;
+    if (v.integration && !v.integration.metrics.includes('tokens')) k.incompleteSessions = (k.incompleteSessions ?? 0) + 1;
+    if ((v.integration || (v.modelFamily === 'other' && v.model)) && v.costUsd === null) k.unpricedSessions++;
     k.blowoutsTotal += v.blowouts.total;
     if (v.blowouts.level === 2) k.sessionsAtLevel2++;
   }

@@ -210,7 +210,16 @@ export interface BackgroundWait {
   wakeAt: number | null;
 }
 
+export interface IntegrationInfo {
+  engine: 'claude-code' | 'codex' | 'copilot' | 'opencode';
+  nativeId: string;
+  mode: 'hooks' | 'extension' | 'plugin';
+  metrics: ('tokens' | 'context' | 'cost' | 'plan' | 'agents' | 'blowouts')[];
+}
+
 export interface SessionReport {
+  /** Absent on legacy Claude reports. Metrics list observed data, not assumed zeroes. */
+  integration?: IntegrationInfo;
   id: string;
   name: string;
   status: 'running' | 'waiting' | 'done';
@@ -499,6 +508,7 @@ export interface ReporterSupport {
 }
 
 export interface SessionView {
+  integration?: IntegrationInfo;
   id: string;
   name: string;
   /** `mod`: the reporter mod (full detail); `hooks`: classic settings hooks only (no usage, cost, plan). */
@@ -629,6 +639,8 @@ export interface ActivityView {
 }
 
 export interface Kpis {
+  /** Live native sessions without observed usage; aggregate token charts are incomplete. */
+  incompleteSessions?: number;
   live: number;
   running: number;
   waiting: number;
@@ -691,6 +703,7 @@ export type RemovedReason = 'done' | 'dropped' | 'deleted';
 
 /** One ended or dropped session, as GET /api/fleet/history lists it. */
 export interface HistoryRow {
+  integration?: IntegrationInfo;
   id: string;
   name: string;
   project: string;
@@ -1078,6 +1091,7 @@ function session(v: unknown, path: string): SessionReport {
   if (!id) throw new Invalid(`${path}.id`, 'must not be empty');
   const bg = background(o.background, `${path}.background`);
   return {
+    ...(o.integration == null ? {} : { integration: integration(o.integration, `${path}.integration`) }),
     id,
     name: str(o.name, `${path}.name`, LIMITS.name),
     status: oneOf(o.status, `${path}.status`, ['running', 'waiting', 'done'] as const),
@@ -1119,6 +1133,16 @@ function session(v: unknown, path: string): SessionReport {
     ...respondInfo(o.respond, `${path}.respond`),
     ...(o.asks === undefined || o.asks === null ? {} : { asks: asks(o.asks, `${path}.asks`) }),
     ...(o.clearedFrom === undefined ? {} : { clearedFrom: strOrNull(o.clearedFrom, `${path}.clearedFrom`, LIMITS.id) }),
+  };
+}
+
+function integration(v: unknown, path: string): IntegrationInfo {
+  const o = obj(v, path);
+  return {
+    engine: oneOf(o.engine, `${path}.engine`, ['claude-code', 'codex', 'copilot', 'opencode'] as const),
+    nativeId: str(o.nativeId, `${path}.nativeId`, LIMITS.id),
+    mode: oneOf(o.mode, `${path}.mode`, ['hooks', 'extension', 'plugin'] as const),
+    metrics: arr(o.metrics, `${path}.metrics`, 6).map((m, i) => oneOf(m, `${path}.metrics[${i}]`, ['tokens', 'context', 'cost', 'plan', 'agents', 'blowouts'] as const)),
   };
 }
 

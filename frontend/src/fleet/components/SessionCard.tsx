@@ -2,7 +2,7 @@ import { fmtCountdown, fmtDur, fmtPct, fmtTok } from "../format";
 import { useRespond } from "../useRespond";
 import { respondGate } from "../respond";
 import { RespondButton } from "./Respond";
-import { COST_HINT_SESSION, currentStep, delegateText, dropAtOf, inferredStep, planProgress, sessionCounts, sessionElapsedSec, sessionTokens, TOKENS_HINT, treeOrder } from "../logic";
+import { COST_HINT_SESSION, currentStep, delegateText, dropAtOf, inferredStep, planProgress, sessionCounts, sessionElapsedSec, sessionTokens, NATIVE_TOKENS_HINT, TOKENS_HINT, treeOrder } from "../logic";
 import type { AgentView, LifecycleConfig, SessionView } from "../types";
 import { BlowBadge, ContextBar, Cost, cssVar, delegatesOf, EffortMeter, FAMILY_COLOR, GitLine, ModelChip, PlanBar, StateIcon, stateKind, type StateKind } from "./Chips";
 import { backgroundLead, backgroundTitle, toolOfNote, waitLead } from "../waiting";
@@ -58,7 +58,7 @@ export function bandLine(s: SessionView, kind: StateKind, sinceSeen: number, now
   if (kind === "stale") {
     return (
       <span className="bl">
-        Last heartbeat <span className="mono">{fmtDur(sinceSeen)}</span> ago. Goes away in <span className="mono">{fmtCountdown((dropAtOf(s, config) - now) / 1000)}</span>.
+        {s.integration?.mode === "hooks" ? "Last event" : "Last heartbeat"} <span className="mono">{fmtDur(sinceSeen)}</span> ago. Goes away in <span className="mono">{fmtCountdown((dropAtOf(s, config) - now) / 1000)}</span>.
       </span>
     );
   }
@@ -96,6 +96,7 @@ export function SessionCard(props: { s: SessionView; now: number; config: Lifecy
         <div className="h">
           <span className="sd"><StateIcon kind={kind} /></span>
           <span className="nm">{s.name}</span>
+          <span className="chip" title="Session CLI">{s.integration?.engine ?? "claude-code"}</span>
           <span className="mdl">
             <ModelChip family={s.modelFamily} model={s.model} />
             <EffortMeter effort={s.effort} />
@@ -146,7 +147,7 @@ export function SessionCard(props: { s: SessionView; now: number; config: Lifecy
             <PlanBar pct={p.pct} />
           </div>
         ) : (
-          <div className="noplan">No plan reported. Agents were launched ad hoc.</div>
+          <div className="noplan">{s.integration ? "No plan reported." : "No plan reported. Agents were launched ad hoc."}</div>
         )}
         <div className="crew" aria-label={`${c.running} running, ${c.done} done of ${c.all} agents, the orchestrator included`}>
           {treeOrder(s.agents).map((a) => {
@@ -171,9 +172,9 @@ export function SessionCard(props: { s: SessionView; now: number; config: Lifecy
           <span className="k">Cost</span>
           <span className="v mono"><Cost usd={s.costUsd} family={s.modelFamily} /></span>
         </div>
-        <div className="c" title={TOKENS_HINT}>
+        <div className="c" title={s.integration ? NATIVE_TOKENS_HINT : TOKENS_HINT}>
           <span className="k">Tokens</span>
-          <span className="v mono">{hooks ? "—" : fmtTok(sessionTokens(s))}</span>
+          <span className="v mono">{hooks || (s.integration && !s.integration.metrics.includes("tokens")) ? "—" : fmtTok(sessionTokens(s))}</span>
         </div>
         <div className="c">
           <span className="k">Time</span>

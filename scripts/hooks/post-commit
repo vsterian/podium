@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Graph data stays in the configured vault workspace, outside this checkout.
+set -euo pipefail
+workspace="$(git config --get podium.graphWorkspace || true)"
+[[ -n "$workspace" && -f "$workspace/Graph/scripts/update_graph.py" ]] || exit 0
+repo="$(git rev-parse --show-toplevel)"
+cd "$workspace"
+python3 Graph/scripts/update_graph.py --repo-root "$repo" >/dev/null

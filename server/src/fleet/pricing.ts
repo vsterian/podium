@@ -93,6 +93,8 @@ export function resolveModel(model: string | null | undefined, overrides: PriceO
   const m = (model ?? '').toLowerCase();
   if (!m) return null;
   if (Object.hasOwn(overrides, m)) return m;
+  // Native CLI prices are opt-in: a Copilot Claude model does not imply Anthropic USD billing.
+  if (/^(codex|copilot|opencode)\//.test(m)) return null;
   if (!isClaude(m)) return null;
   for (const [re, key] of MATCH) if (re.test(m)) return key;
   return null;

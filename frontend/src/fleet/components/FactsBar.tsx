@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fmtDur, fmtTok } from "../format";
-import { AGENT_TIME_HINT, AGENTS_HINT, COST_HINT_SESSION, sessionAgentSec, sessionCounts, sessionElapsedSec, sessionTokens, TOKENS_HINT } from "../logic";
+import { AGENT_TIME_HINT, AGENTS_HINT, COST_HINT_SESSION, sessionAgentSec, sessionCounts, sessionElapsedSec, sessionTokens, NATIVE_TOKENS_HINT, TOKENS_HINT } from "../logic";
 import type { SessionView } from "../types";
 import { BlowBadge, Cost } from "./Chips";
 import { IconCheck, IconChevron, IconCopy, IconWarn, IconX } from "./Icons";
@@ -53,6 +53,7 @@ export function CopyResume({ command }: { command: string }) {
 
 /** The reporter mod's version; "Settings hooks" when there is no mod; the card chip's wording, a warning shape and the note as its tooltip when the server places it out of range. */
 function ReporterFact({ s }: { s: SessionView }) {
+  if (s.integration) return <div className="fact"><div className="k">Reporter</div><div className="v soft">{s.integration.engine} · {s.integration.mode}</div></div>;
   const note = versionNote(s);
   if (!note && (s.reporterVersion === null || s.reporter === "hooks")) {
     return (
@@ -80,7 +81,7 @@ function BlowoutsFact({ s, blow }: { s: SessionView; blow?: BlowControl }) {
     return (
       <div className="fact" title="Times a context window ran over">
         <div className="k">Blowouts</div>
-        <div className="v soft">none</div>
+        <div className="v soft">{s.integration && !s.integration.metrics.includes("blowouts") ? "unavailable" : "none"}</div>
       </div>
     );
   }
@@ -142,8 +143,8 @@ export function FactsBar({ s, now, onAgent, blow }: { s: SessionView; now: numbe
         <div className="v mono"><Cost usd={s.costUsd} family={s.modelFamily} /></div>
       </div>
       <div className="fact">
-        <div className="k" title={TOKENS_HINT}>Tokens</div>
-        <div className="v mono" title={TOKENS_HINT}>{fmtTok(sessionTokens(s))}</div>
+        <div className="k" title={s.integration ? NATIVE_TOKENS_HINT : TOKENS_HINT}>Tokens</div>
+        <div className="v mono" title={s.integration ? NATIVE_TOKENS_HINT : TOKENS_HINT}>{s.integration && !s.integration.metrics.includes("tokens") ? "unavailable" : fmtTok(sessionTokens(s))}</div>
       </div>
       <div className="fact">
         <div className="k">Running for</div>

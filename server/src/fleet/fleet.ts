@@ -394,6 +394,7 @@ export class Fleet {
     return {
       id: row.id,
       name: row.name,
+      ...(row.integration_json ? { integration: JSON.parse(row.integration_json) } : {}),
       project: shortenHome(row.project_root ?? row.cwd, this.cfg.home),
       model: row.model,
       modelFamily: family(row.model),

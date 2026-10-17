@@ -67,7 +67,7 @@ export interface ReporterList extends Paged<ReporterRow> {
 }
 export interface ReporterDetail extends ReporterRow {
   serverStartedAt: number;
-  kind: "mod" | "hooks";
+  kind: "mod" | "hooks" | "native";
   machineId: string | null;
   source: string | null;
   engineVersion: string | null;

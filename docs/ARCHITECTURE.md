@@ -778,3 +778,18 @@ non-root user, restart, stop, standalone start/stop, `run` plus SIGTERM, launchd
 modes, purge, and `claude plugin install podium-reporter@eengelking-marketplace` against the live
 marketplace with a clean config directory. The systemd path is covered by a unit test of the generated text
 only (known issue 12).
+
+
+## Multi-CLI monitoring (vsterian fork)
+
+Native adapters live in `reporters/`. Shared dependency-free ESM code allowlists native event metadata, redacts strings and transports bounded events to `POST /api/fleet/event`. Codex and Copilot hooks are one-shot advisory commands; Copilot's native extension joins the existing session through its bundled SDK, while OpenCode's plugin subscribes to native events. The extension/plugin send heartbeats; hooks use the existing longer hook silence allowance.
+
+`nativeEvents.ts` validates and reduces events into the original Report protocol, then uses the original Fleet ingest/auth/SSE pipeline. Migration 18 adds optional integration metadata, native restart checkpoints and per-message/per-call usage snapshots. Nested SQLite savepoints make checkpoint, event deduplication and usage updates atomic with existing report ingestion. Native state and usage cascade when a session is removed. Retry IDs are deduplicated using the existing events table; usage snapshots replace the same message rather than adding it twice. Older lifecycle events cannot reopen an ended session; an explicit start/prompt can resume it. Rich extension events take precedence over reduced hook events.
+
+Integration metadata identifies engine, native ID, reporting mode and observed metrics. Old reports/rows retain original Claude behavior. Resume commands quote cwd/native IDs and select the correct CLI. Native pricing keys are engine-qualified and require explicit Admin prices; provider-reported OpenCode USD is retained. Copilot billing multipliers never enter the USD field. Normal compaction is not context exhaustion.
+
+Activity text is accepted only under the existing viewer lease, kept in the existing in-memory activity store, and excluded from checkpoints. Prompts, reasoning and raw transcript records are never forwarded by the new adapters. Enrichment reads a bounded 512 KiB tail of the exact transcript path supplied to the hook, checks session identity where present and extracts metadata only. Unknown formats remain unavailable. Transport queues are bounded to 200 in-memory events; one-shot hooks have no durable offline spool.
+
+The installer writes narrow native hook/plugin shims referencing this checkout and private runtime config. It merges Codex hook groups, owns a separate Copilot hooks file and refuses to overwrite unowned plugin/extension files. Codex trust is reviewed through `/hooks`; no global trust bypass is installed. E2E alone uses the vetted-hook automation bypass in its private temporary Codex home.
+
+OpenCode 1.3.x can dispose its event bus without awaiting plugin callbacks. The plugin therefore flushes pending normalized events and terminal session markers through a bounded Node child at process exit (two-second maximum). This preserves final usage and history without taking over the CLI's signal handlers. Hard kills and machine failures still rely on silence detection.

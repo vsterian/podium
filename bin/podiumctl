@@ -8,6 +8,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { installReporter } from '../reporters/install.mjs';
 
 export const REPO_ROOT = path.join(path.dirname(fs.realpathSync(fileURLToPath(import.meta.url))), '..');
 export const IMAGE = 'localhost/podium:latest';
@@ -34,6 +35,7 @@ const HELP = `podiumctl: manage the Podium server
 Usage: podiumctl <command> [options]
 
 Commands:
+  reporter install|uninstall codex|copilot|opencode  Install user-native reporters (--project PATH for project scope)
   build               Build the container image (container mode) or the app (standalone mode)
   start               Start the server; builds first if there is nothing to run yet
   stop                Stop the server (the database is kept)
@@ -95,7 +97,7 @@ Config keys: ${ALL_KEYS.join(', ')}.
 export function parseArgs(argv) {
   const flags = {};
   const rest = [];
-  const valued = new Set(['mode', 'port', 'bind', 'tail']);
+  const valued = new Set(['mode', 'port', 'bind', 'tail', 'project']);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-h' || a === '--help') flags.help = true;
@@ -606,6 +608,7 @@ export async function main(argv) {
   const persist = ['build', 'start', 'restart', 'enable'].includes(cmd);
   const cfg = loadCfg(flags, { persist });
   switch (cmd) {
+    case 'reporter': say(JSON.stringify(installReporter(args[0], args[1], flags), null, 2)); return 0;
     case 'build': await cmdBuild(cfg); return 0;
     case 'start': await cmdStart(cfg); return 0;
     case 'stop': await cmdStop(cfg); return 0;

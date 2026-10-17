@@ -1,3 +1,4 @@
+import { ingestNativeEvent } from './nativeEvents.js';
 // Express router for Podium, mounted at /api/fleet (SPEC 7.1, 7.7).
 import express, { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import type { Fleet } from './fleet.js';
@@ -78,7 +79,7 @@ function noteReporter(opts: FleetRouterOptions, logger: Logger, seen: ReporterSe
 }
 
 /** The key a sender is known by, and any other row that already holds its session, for the ignore check. */
-function keyTarget(opts: FleetRouterOptions, s: { kind: 'mod' | 'hooks'; machineId: string | null; source: string | null; sessionId: string; owner?: string | null }): { key: string; otherKeys: string[] } {
+function keyTarget(opts: FleetRouterOptions, s: { kind: 'mod' | 'hooks' | 'native'; engine?: string; machineId: string | null; source: string | null; sessionId: string; owner?: string | null }): { key: string; otherKeys: string[] } {
   const own = ReporterStore.keyOf(s);
   try {
     const keys = opts.reporters?.keysFor(s) ?? [own];
@@ -301,6 +302,30 @@ export function createFleetRouter(fleet: Fleet, opts: FleetRouterOptions = {}): 
       }
       logger.error('ingest.failed', `podium: hook ingest failed: ${(err as Error).message}`, { reason: (err as Error).message, status: 500, route: routeName(req) });
       res.status(500).json({ ok: false, error: 'ingest failed', path: '$' });
+    }
+  });
+
+  router.post('/event', requireToken, json, (req, res) => {
+    const id = identityOf(res);
+    if (id.kind === 'person' && nameKey(typeof req.body?.userName === 'string' ? req.body.userName : '') !== nameKey(id.person.name)) {
+      res.status(401).json({ ok: false, error: 'the token does not belong to that name', path: '$.userName' });
+      return;
+    }
+    const sid = `${req.body?.engine}:${req.body?.sessionId}`;
+    const version = `native-${req.body?.engine}-1.1.0`;
+    if (refuseIgnored(opts, logger, fleet, req, res, { ...keyTarget(opts, { kind: 'native', engine: req.body?.engine, machineId: null, source: machineOf(req), sessionId: sid, owner: ownerOf(id) }), source: machineOf(req), version })) return;
+    try {
+      const result = ingestNativeEvent(fleet, req.body, ownerOf(id));
+      if (result.ok && id.kind === 'person') opts.people?.touch(id.person.id, machineOf(req), fleet.now());
+      if (result.ok && !('ignored' in result) && !('duplicate' in result)) noteReporter(opts, logger, {
+        kind: 'native', engine: req.body.engine, machineId: null, machineName: null, source: machineOf(req), owner: ownerOf(id), credential: credentialOf(id),
+        version, engineVersion: null, sessionId: result.sessionId,
+      }, fleet.now());
+      res.status(result.ok ? 200 : 400).json(result);
+    } catch (err) {
+      if (err instanceof OwnerConflict) { res.status(409).json({ ok: false, error: err.message }); return; }
+      logger.error('ingest.failed', 'podium: native event ingest failed', { route: '/event', status: 500 });
+      res.status(500).json({ ok: false, error: 'ingest failed' });
     }
   });
 

@@ -163,3 +163,8 @@ paste and remove any token or other secret before posting.
 Follow [SECURITY.md](.github/SECURITY.md) and report it privately.
 
 By taking part you agree to follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
+
+
+### Native adapter validation
+
+The fork also runs `reporters/*.test.mjs` in the server suite. `npm run podium:native-e2e -- --help` describes isolated real-CLI probes. Tests may use a deterministic local OpenAI-compatible model to exercise the installed Copilot/OpenCode CLI; explicitly label this as a fixture run, not external provider authentication. New adapters are monitoring-only. Preserve original MIT authorship and existing Claude behavior.

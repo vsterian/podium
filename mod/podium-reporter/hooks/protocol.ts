@@ -207,7 +207,16 @@ export interface BackgroundWait {
   wakeAt: number | null;
 }
 
+export interface IntegrationInfo {
+  engine: 'claude-code' | 'codex' | 'copilot' | 'opencode';
+  nativeId: string;
+  mode: 'hooks' | 'extension' | 'plugin';
+  metrics: ('tokens' | 'context' | 'cost' | 'plan' | 'agents' | 'blowouts')[];
+}
+
 export interface SessionReport {
+  /** Absent on legacy Claude reports. Metrics list observed data, not assumed zeroes. */
+  integration?: IntegrationInfo;
   id: string;
   name: string;
   status: 'running' | 'waiting' | 'done';

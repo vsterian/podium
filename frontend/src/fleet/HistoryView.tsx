@@ -218,6 +218,7 @@ export function HistoryView({ base = "/api/fleet", initialDay }: { base?: string
                               <button type="button" className="lk" onClick={() => go({ open: r.id }, "push")}>
                                 {r.name}
                               </button>
+                              {r.integration && <span className="chip">{r.integration.engine}</span>}
                             </td>
                             <td className="mono">{r.project}</td>
                             <td>

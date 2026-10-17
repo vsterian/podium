@@ -53,6 +53,7 @@ export function KpiStrip({ kpis, split }: { kpis: Kpis | null; split: Split }) {
       </div>
       <div className="kpi">
         <div className="k">Tokens, last minute</div>
+        {!!k?.incompleteSessions && <div className="kpi-cap">Partial telemetry: {k.incompleteSessions} session(s) without usage</div>}
         <div className="v mono">{k ? fmtTok(k.tokensLastMinute) : "–"}</div>
         <Sparkline values={k?.tokensPerSec ?? []} w={100} h={26} />
       </div>
@@ -61,8 +62,8 @@ export function KpiStrip({ kpis, split }: { kpis: Kpis | null; split: Split }) {
 }
 
 export function Toolbar(props: {
-  filter: { status: StatusFilter; q: string };
-  onFilter: (f: { status: StatusFilter; q: string }) => void;
+  filter: { status: StatusFilter; q: string; engine?: string };
+  onFilter: (f: { status: StatusFilter; q: string; engine?: string }) => void;
   sort: SortKey;
   onSort: (k: SortKey) => void;
   shown: number;
@@ -93,6 +94,13 @@ export function Toolbar(props: {
                 {SORTS[k]}
               </option>
             ))}
+          </select>
+          <select className="sel" aria-label="Filter by CLI" value={filter.engine ?? "all"} onChange={(e) => props.onFilter({ ...filter, engine: e.target.value })}>
+            <option value="all">All CLIs</option>
+            <option value="claude-code">Claude Code</option>
+            <option value="codex">Codex</option>
+            <option value="copilot">Copilot CLI</option>
+            <option value="opencode">OpenCode</option>
           </select>
           <input
             className="search"
@@ -143,8 +151,8 @@ export function Wall(props: {
   totalLive: number;
   kpis: Kpis | null;
   split: Split;
-  filter: { status: StatusFilter; q: string };
-  onFilter: (f: { status: StatusFilter; q: string }) => void;
+  filter: { status: StatusFilter; q: string; engine?: string };
+  onFilter: (f: { status: StatusFilter; q: string; engine?: string }) => void;
   sort: SortKey;
   onSort: (k: SortKey) => void;
   cleared: number;

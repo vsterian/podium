@@ -1368,3 +1368,16 @@ These were not resolvable from the type declarations alone. The implementer veri
 8. Should the dashboard also show teammates (agent-team members) distinctly? v1 shows them as agents with `kind: "teammate"` and the same row design.
 9. Does the sample worktree detection work when a session is started inside a worktree created by `isolation: "worktree"`? Verify with one real run.
 10. Name: "Podium" is a working name. Keep it in one constant (`APP_NAME`) so it can change.
+
+
+## 13. Native CLI integrations (vsterian fork)
+
+- Supported engines are Claude Code (legacy), Codex, GitHub Copilot CLI and OpenCode. Existing report v1 requests remain valid without integration metadata.
+- Native events require the existing reporting token and matching userName for per-person tokens. Session IDs are engine-prefixed; ownership and engine cannot be replaced by another reporter.
+- Native monitoring covers supported lifecycle/tool/agent/plan/usage events. Fields unavailable from a native surface remain unavailable; no transcript parsing, full prompt capture or reasoning export occurs by default.
+- Codex uses native advisory hooks. Copilot uses its experimental native extension and reduced native hooks fallback. OpenCode uses its native plugin. Sessions retain the CLI's own terminal workflow and permission policy. New integrations do not accept dashboard responses.
+- Explicit opt-in enrichment may read only the current session transcript supplied to a hook. Raw transcript content stays local. Unsupported versions fail open to native telemetry.
+- Native telemetry persists engine identity, reporting mode, original session ID and observed metric availability through restart and history. Tool retries and message snapshots must not double-count usage. Late events must not accidentally resume ended sessions.
+- The dashboard identifies and filters CLIs, uses engine-specific resume commands and labels incomplete metrics. Prices require an explicit exact native-model key or a provider-reported USD value. Copilot request multipliers/credits are not USD.
+- Installation must preserve unrelated configuration and credentials. Uninstall removes only Podium-owned entries. Normal Codex trust review remains required.
+- Acceptance includes legacy regression tests, migrations, ownership/auth, malformed/replayed events, usage/cache accounting, reporter precedence, installer preservation and browser checks. Native E2E must distinguish real provider access from deterministic local model fixtures.
